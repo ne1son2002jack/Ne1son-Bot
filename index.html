@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="color-scheme" content="light dark">
+<title>Мастерская ТЗ</title>
+<style>
+:root{--bg:#eef1f4;--surface:#fff;--ink:#16202b;--muted:#5d6b7a;--line:#d3dae1;--accent:#0f6b66;--on-accent:#fff;--mine:#dcefed;--err:#b3261e;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1519;--surface:#172027;--ink:#e6edf2;--muted:#93a3b2;--line:#2a3640;--accent:#5fd3c6;--on-accent:#06201d;--mine:#16353a;--err:#ff8a80}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
+header h1{font-size:17px;margin:0;flex:1;font-weight:650;letter-spacing:.01em}
+#cost{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+.ico{border:1px solid var(--line);background:none;border-radius:8px;padding:6px 10px}
+main{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.empty{margin:auto;max-width:30ch;text-align:center;color:var(--muted)}
+.msg{max-width:92%;padding:10px 13px;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);background:var(--surface);border-radius:4px 16px 16px 16px}
+.msg.me{align-self:flex-end;background:var(--mine);border-radius:16px 4px 16px 16px}
+.msg.err{border-color:var(--err);color:var(--err)}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.files button,.chip{border:1px solid var(--accent);background:none;color:var(--accent);border-radius:999px;padding:4px 12px;font-size:14px}
+.chip{display:inline-flex;gap:6px;align-items:center}
+details{margin-top:8px;font-size:13px;color:var(--muted)}
+pre{margin:6px 0 0;padding:8px;background:var(--bg);border-radius:6px;overflow-x:auto;font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap}
+footer{border-top:1px solid var(--line);background:var(--surface);padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px))}
+#chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+#chips:empty{display:none}
+#row{display:flex;gap:8px;align-items:flex-end}
+textarea{flex:1;resize:none;max-height:140px;border:1px solid var(--line);border-radius:12px;padding:9px 12px;font:inherit;background:var(--bg);color:var(--ink)}
+#send{background:var(--accent);color:var(--on-accent);border:0;border-radius:12px;padding:10px 16px;font-weight:650}
+#send:disabled{opacity:.5}
+#status{font-size:13px;color:var(--muted);min-height:18px;margin-bottom:4px}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);width:min(92vw,420px);padding:18px}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog label{display:block;font-size:14px;margin:12px 0 4px;color:var(--muted)}
+dialog input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--bg);color:var(--ink)}
+dialog .btns{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+dialog .btns button{border:1px solid var(--line);background:none;border-radius:8px;padding:8px 12px}
+dialog .btns .main{background:var(--accent);color:var(--on-accent);border:0;font-weight:650}
+dialog p{font-size:13px;color:var(--muted);margin:10px 0 0}
+#hlist{margin-top:10px;display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto}
+#hlist .it{display:flex;gap:6px}
+#hlist .open{flex:1;text-align:left;border:1px solid var(--line);background:none;border-radius:8px;padding:8px 10px;overflow-wrap:anywhere}
+#hlist .del{border:1px solid var(--line);background:none;border-radius:8px;padding:8px 12px;color:var(--err)}
+#hlist small{display:block;color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Мастерская ТЗ</h1>
+  <span id="cost">$0.0000</span>
+  <button class="ico" id="newChat" title="Новый диалог" aria-label="Новый диалог">+</button>
+  <button class="ico" id="hist" title="История" aria-label="История диалогов">История</button>
+  <button class="ico" id="gear" title="Настройки" aria-label="Настройки">⚙</button>
+</header>
+<main id="log"><div class="empty" id="empty">Прикрепите архив или файл, опишите задачу и отправьте. Готовые PDF и архивы появятся кнопками для скачивания.</div></main>
+<footer>
+  <div id="status"></div>
+  <div id="chips"></div>
+  <div id="row">
+    <button class="ico" id="attach" title="Прикрепить файлы">Файл</button>
+    <input type="file" id="picker" multiple hidden>
+    <textarea id="text" rows="1" placeholder="Что нужно сделать?"></textarea>
+    <button id="send">Отправить</button>
+  </div>
+</footer>
+<dialog id="hdlg">
+  <strong>История диалогов</strong>
+  <div id="hlist"></div>
+  <div class="btns"><button id="hclose">Закрыть</button></div>
+  <p>Диалоги хранятся только в этом браузере на этом телефоне. Если очистить данные сайта, они пропадут. Открывайте приложение всегда с одного значка, иначе история будет лежать в разных местах.</p>
+</dialog>
+<dialog id="dlg">
+  <strong>Настройки</strong>
+  <label for="key">API-ключ Anthropic</label>
+  <input id="key" type="password" autocomplete="off" placeholder="sk-ant-...">
+  <label for="model">Модель</label>
+  <input id="model" value="claude-sonnet-5-5">
+  <p>Ключ хранится только в браузере этого телефона и отправляется напрямую в Anthropic. Используйте отдельный ключ с лимитом расходов.</p>
+  <div class="btns">
+    <button class="main" id="save">Сохранить</button>
+    <button id="close">Закрыть</button>
+    <button id="forget">Удалить ключ</button>
+  </div>
+</dialog>
+<script>
+const API = 'https://api.anthropic.com';
+const SYS = 'Ты помогаешь составлять технические задания и работать с файлами. Отвечай по-русски. Загруженные файлы лежат в рабочей папке контейнера; архивы распаковывай через unzip или 7z. Файлы .bbmodel — это JSON (Blockbench): большие файлы разбирай скриптом и не печатай целиком. Готовые файлы (PDF, zip и другие) обязательно копируй в $OUTPUT_DIR и проверяй командой ls. Для PDF с кириллицей зарегистрируй в reportlab системный TTF-шрифт с кириллицей (например DejaVu Sans), найди его через fc-list или find. Интернета в контейнере нет.';
+const $ = s => document.querySelector(s);
+const ls = {
+  get(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+const fresh = () => ({ id: 'c' + Date.now(), title: '', messages: [], names: [], container: null, cost: 0, files: [], busy: false });
+let st = fresh();
+function loadAll() { try { return JSON.parse(ls.get('cc_chats') || '{}'); } catch (e) { return {}; } }
+function save() {
+  if (!st.messages.length) return;
+  const all = loadAll();
+  all[st.id] = { id: st.id, title: st.title, updated: Date.now(), messages: st.messages, names: st.names, container: st.container, cost: st.cost };
+  try { localStorage.setItem('cc_chats', JSON.stringify(all)); localStorage.setItem('cc_last', st.id); }
+  catch (e) { status('Память браузера заполнена: удалите старые диалоги в «Истории».'); }
+}
+
+const hdr = (extra = {}) => ({
+  'x-api-key': ls.get('cc_key'),
+  'anthropic-version': '2023-06-01',
+  'anthropic-dangerous-direct-browser-access': 'true',
+  'anthropic-beta': 'files-api-2025-04-14',
+  ...extra
+});
+const status = t => { $('#status').textContent = t || ''; };
+function bubble(cls, text) {
+  $('#empty')?.remove();
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.textContent = text;
+  $('#log').appendChild(d);
+  d.scrollIntoView({ block: 'end' });
+  return d;
+}
+async function check(r) {
+  if (r.ok) return r;
+  let m = 'Ошибка ' + r.status;
+  try { const j = await r.json(); m = j.error?.message || m; } catch (e) {}
+  throw new Error(m);
+}
+async function upload(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await check(await fetch(API + '/v1/files', { method: 'POST', headers: hdr(), body: fd }));
+  return (await r.json()).id;
+}
+async function download(id, btn) {
+  const old = btn.textContent;
+  btn.textContent = 'Скачиваю…';
+  try {
+    const r = await check(await fetch(API + '/v1/files/' + id + '/content', { headers: hdr() }));
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = btn.dataset.name || 'file';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  } catch (e) { bubble('err', e.message); }
+  btn.textContent = old;
+}
+function renderAssistant(content) {
+  const texts = [], cmds = [], ids = [], errs = [];
+  for (const b of content) {
+    if (b.type === 'text' && b.text) texts.push(b.text);
+    else if (b.type === 'server_tool_use') {
+      const i = b.input || {};
+      cmds.push(i.command ? (b.name === 'bash_code_execution' ? '$ ' + i.command : i.command + ' ' + (i.path || '')) : b.name);
+    } else if (b.type && b.type.endsWith('_tool_result')) {
+      const c = b.content || {};
+      if (c.type && c.type.endsWith('_error')) errs.push(c.error_code);
+      for (const f of (c.content || [])) if (f && f.file_id) ids.push(f.file_id);
+    }
+  }
+  const d = bubble('', texts.join('\n\n') || (ids.length ? 'Готово.' : '…'));
+  if (errs.length) { const e = document.createElement('div'); e.textContent = 'Ошибка инструмента: ' + errs.join(', '); e.style.color = 'var(--err)'; d.appendChild(e); }
+  if (cmds.length) {
+    const det = document.createElement('details');
+    const sm = document.createElement('summary');
+    sm.textContent = 'Выполнено команд: ' + cmds.length;
+    const pre = document.createElement('pre');
+    pre.textContent = cmds.join('\n\n');
+    det.append(sm, pre); d.appendChild(det);
+  }
+  if (ids.length) {
+    const box = document.createElement('div'); box.className = 'files';
+    for (const id of [...new Set(ids)]) {
+      const b = document.createElement('button');
+      b.textContent = 'Скачать файл'; b.dataset.name = 'file';
+      b.onclick = () => download(id, b);
+      box.appendChild(b);
+      fetch(API + '/v1/files/' + id, { headers: hdr() }).then(r => r.json()).then(m => {
+        if (m.filename) { b.dataset.name = m.filename; b.textContent = 'Скачать ' + m.filename; }
+      }).catch(() => {});
+    }
+    d.appendChild(box);
+  }
+  d.scrollIntoView({ block: 'end' });
+}
+async function callApi() {
+  const body = {
+    model: ls.get('cc_model') || 'claude-sonnet-5-5',
+    max_tokens: 8000,
+    system: SYS,
+    messages: st.messages,
+    tools: [{ type: 'code_execution_20250825', name: 'code_execution' }]
+  };
+  if (st.container) body.container = st.container;
+  const r = await check(await fetch(API + '/v1/messages', {
+    method: 'POST', headers: hdr({ 'content-type': 'application/json' }), body: JSON.stringify(body)
+  }));
+  return r.json();
+}
+async function send() {
+  if (st.busy) return;
+  if (!ls.get('cc_key')) { $('#dlg').showModal(); return; }
+  const text = $('#text').value.trim();
+  if (!text && !st.files.length) return;
+  st.busy = true; $('#send').disabled = true;
+  const names = st.files.map(f => f.name);
+  bubble('me', (text || 'Файлы без комментария') + (names.length ? '\n\n📎 ' + names.join(', ') : ''));
+  const files = st.files; st.files = []; $('#text').value = ''; chips();
+  try {
+    const content = [];
+    for (let i = 0; i < files.length; i++) {
+      status('Загружаю файл ' + (i + 1) + ' из ' + files.length + '…');
+      content.push({ type: 'container_upload', file_id: await upload(files[i]) });
+    }
+    content.push({ type: 'text', text: text || 'Изучи загруженные файлы и кратко опиши, что в них.' });
+    st.messages.push({ role: 'user', content });
+    st.names.push(names);
+    if (!st.title) st.title = (text || names[0] || 'Файлы').slice(0, 50);
+    save();
+    for (let n = 0; n < 6; n++) {
+      status('Claude работает…');
+      const j = await callApi();
+      if (j.container?.id) st.container = j.container.id;
+      st.messages.push({ role: 'assistant', content: j.content });
+      save();
+      const u = j.usage || {};
+      st.cost += ((u.input_tokens || 0) * 2 + (u.output_tokens || 0) * 10) / 1e6;
+      $('#cost').textContent = '≈ $' + st.cost.toFixed(4);
+      renderAssistant(j.content);
+      if (j.stop_reason !== 'pause_turn') break;
+    }
+  } catch (e) {
+    let hint = '\n\nТекст и файлы возвращены в поле ввода, отправьте ещё раз.';
+    if (st.container && /container/i.test(e.message)) { st.container = null; hint = '\n\nКонтейнер устарел, ранее загруженные файлы в нём недоступны. Прикрепите их заново и повторите.'; }
+    bubble('err', e.message + hint);
+    if (st.messages.length && st.messages[st.messages.length - 1].role === 'user') { st.messages.pop(); st.names.pop(); save(); }
+    $('#text').value = text; st.files = files; chips();
+  }
+  status(''); st.busy = false; $('#send').disabled = false;
+}
+function chips() {
+  const c = $('#chips'); c.textContent = '';
+  st.files.forEach((f, i) => {
+    const s = document.createElement('button'); s.className = 'chip';
+    s.textContent = f.name + ' ✕';
+    s.onclick = () => { st.files.splice(i, 1); chips(); };
+    c.appendChild(s);
+  });
+}
+$('#attach').onclick = () => $('#picker').click();
+$('#picker').onchange = e => { st.files.push(...e.target.files); e.target.value = ''; chips(); };
+$('#send').onclick = send;
+$('#text').oninput = e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'; };
+$('#gear').onclick = () => { $('#key').value = ls.get('cc_key'); $('#model').value = ls.get('cc_model') || 'claude-sonnet-5-5'; $('#dlg').showModal(); };
+$('#save').onclick = () => { ls.set('cc_key', $('#key').value.trim()); ls.set('cc_model', $('#model').value.trim()); $('#dlg').close(); };
+$('#close').onclick = () => $('#dlg').close();
+$('#forget').onclick = () => { ls.del('cc_key'); $('#key').value = ''; };
+function newChat() {
+  if (st.busy) return;
+  st = fresh();
+  $('#log').innerHTML = '<div class="empty" id="empty">Новый диалог. Прикрепите файлы и опишите задачу.</div>';
+  $('#cost').textContent = '$0.0000'; chips();
+}
+function view(c) {
+  $('#log').textContent = '';
+  let u = 0;
+  for (const m of c.messages) {
+    if (m.role === 'user') {
+      const t = (m.content.find(b => b.type === 'text') || {}).text || '';
+      const n = c.names[u++] || [];
+      bubble('me', t + (n.length ? '\n\n📎 ' + n.join(', ') : ''));
+    } else renderAssistant(m.content);
+  }
+  $('#cost').textContent = '≈ $' + (c.cost || 0).toFixed(4);
+  $('#log').lastElementChild?.scrollIntoView({ block: 'end' });
+}
+function openChat(id) {
+  const c = loadAll()[id];
+  if (!c || st.busy) return;
+  st = { ...fresh(), ...c, files: [], busy: false };
+  view(st); chips(); ls.set('cc_last', id);
+}
+function showHist() {
+  const box = $('#hlist'); box.textContent = '';
+  const list = Object.values(loadAll()).sort((a, b) => b.updated - a.updated);
+  if (!list.length) box.textContent = 'Пока пусто.';
+  for (const c of list) {
+    const row = document.createElement('div'); row.className = 'it';
+    const o = document.createElement('button'); o.className = 'open';
+    o.textContent = c.title || 'Без названия';
+    const s = document.createElement('small');
+    s.textContent = new Date(c.updated).toLocaleString('ru-RU');
+    o.appendChild(s);
+    o.onclick = () => { openChat(c.id); $('#hdlg').close(); };
+    const d = document.createElement('button'); d.className = 'del';
+    d.textContent = '✕'; d.setAttribute('aria-label', 'Удалить диалог');
+    d.onclick = () => {
+      const all = loadAll(); delete all[c.id];
+      try { localStorage.setItem('cc_chats', JSON.stringify(all)); } catch (e) {}
+      if (c.id === st.id) newChat();
+      showHist();
+    };
+    row.append(o, d); box.appendChild(row);
+  }
+  if (!$('#hdlg').open) $('#hdlg').showModal();
+}
+$('#newChat').onclick = newChat;
+$('#hist').onclick = showHist;
+$('#hclose').onclick = () => $('#hdlg').close();
+{ const last = ls.get('cc_last'); if (last && loadAll()[last]) openChat(last); }
+if (!ls.get('cc_key')) setTimeout(() => $('#dlg').showModal(), 300);
+</script>
+</body>
+</html>
